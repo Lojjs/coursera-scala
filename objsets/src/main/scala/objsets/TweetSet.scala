@@ -55,7 +55,8 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def union(that: TweetSet): TweetSet
-  
+
+    def isEmpty: Boolean
   /**
    * Returns the tweet from this set which has the greatest retweet count.
    *
@@ -112,6 +113,8 @@ class Empty extends TweetSet {
 
   def union(that: TweetSet): TweetSet = that
 
+  def isEmpty = true
+
   def mostRetweeted: Tweet = throw new java.util.NoSuchElementException("Not possible to retrieve the most retweeted" +
     " tweet from an empty Set.")
 
@@ -138,20 +141,26 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     right.filterAcc(p, accWithLeft)
   }
 
-  def union(that: TweetSet): TweetSet = ((left union right) union that) incl elem
+  def union(that: TweetSet): TweetSet = (left union (right union that)) incl elem
 
   def mostRetweeted: Tweet = {
+    lazy val leftTweet = left.mostRetweeted
+    lazy val rightTweet = right.mostRetweeted
 
-    var mostRetweetedSoFar = elem
-
-    foreach(tweet => {
-      if(tweet.retweets > mostRetweetedSoFar.retweets)
-        mostRetweetedSoFar = tweet
-    })
-    mostRetweetedSoFar
+    if(!left.isEmpty && leftTweet.retweets > elem.retweets) {
+      if(!right.isEmpty && rightTweet.retweets > leftTweet.retweets) rightTweet
+      else leftTweet
+    }
+    else if(!right.isEmpty && rightTweet.retweets > elem.retweets) rightTweet
+    else elem
   }
 
-  def descendingByRetweet: TweetList = new Cons(mostRetweeted, remove(mostRetweeted).descendingByRetweet)
+  def isEmpty = false
+
+  def descendingByRetweet: TweetList = {
+    val currTweet = mostRetweeted
+    new Cons(currTweet, remove(currTweet).descendingByRetweet)
+  }
 
   /**
    * The following methods are already implemented
@@ -206,7 +215,7 @@ object GoogleVsApple {
   val google = List("android", "Android", "galaxy", "Galaxy", "nexus", "Nexus")
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
-  lazy val googleTweets: TweetSet = allTweets.filter(tweet => google.exists(elem => tweet.text.contains(elem)))
+  lazy val googleTweets: TweetSet = allTweets.filter(tweet => google.exists(tweet.text.contains))
   lazy val appleTweets: TweetSet = allTweets.filter(tweet => apple.exists(tweet.text.contains))
   
   /**
